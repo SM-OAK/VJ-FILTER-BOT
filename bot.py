@@ -2,9 +2,7 @@
 # Subscribe YouTube Channel For Amazing Bot @Tech_VJ
 # Ask Doubt on telegram @KingVJ01
 
-# Clone Code Credit : YT - @Tech_VJ / TG - @VJ_Bots / GitHub - @VJBots
-
-import sys, glob, importlib, logging, logging.config, pytz, asyncio
+import sys, glob, importlib, logging, logging.config, pytz, asyncio, os
 from pathlib import Path
 
 # Get logging configurations
@@ -30,13 +28,15 @@ from TechVJ.bot.clients import initialize_clients
 
 ppath = "plugins/*.py"
 files = glob.glob(ppath)
-TechVJBot.start()
-loop = asyncio.get_event_loop()
 
+# REMOVED: TechVJBot.start() from global scope.
+loop = asyncio.get_event_loop()
 
 async def start():
     print('\n')
     print('Initalizing Your Bot')
+    # Correctly starting the bot client here
+    await TechVJBot.start()
     bot_info = await TechVJBot.get_me()
     await initialize_clients()
     for name in files:
@@ -67,34 +67,38 @@ async def start():
     time = now.strftime("%H:%M:%S %p")
     try:
         await TechVJBot.send_message(chat_id=LOG_CHANNEL, text=script.RESTART_TXT.format(today, time))
-    except:
-        print("Make Your Bot Admin In Log Channel With Full Rights")
-    for ch in CHANNELS:
+    except Exception as e:
+        print(f"Make Your Bot Admin In Log Channel With Full Rights: {e}")
+    
+    # Safety check for CHANNELS to avoid crashing if empty/None
+    if CHANNELS:
+        for ch in CHANNELS:
+            try:
+                k = await TechVJBot.send_message(chat_id=ch, text="**Bot Restarted**")
+                await k.delete()
+            except:
+                print("Make Your Bot Admin In File Channels With Full Rights")
+                
+    if AUTH_CHANNEL:
         try:
-            k = await TechVJBot.send_message(chat_id=ch, text="**Bot Restarted**")
+            k = await TechVJBot.send_message(chat_id=AUTH_CHANNEL, text="**Bot Restarted**")
             await k.delete()
         except:
-            print("Make Your Bot Admin In File Channels With Full Rights")
-    try:
-        k = await TechVJBot.send_message(chat_id=AUTH_CHANNEL, text="**Bot Restarted**")
-        await k.delete()
-    except:
-        print("Make Your Bot Admin In Force Subscribe Channel With Full Rights")
+            print("Make Your Bot Admin In Force Subscribe Channel With Full Rights")
+            
     if CLONE_MODE == True:
         print("Restarting All Clone Bots.......")
         await restart_bots()
         print("Restarted All Clone Bots.")
+        
     app = web.AppRunner(await web_server())
     await app.setup()
     bind_address = "0.0.0.0"
     await web.TCPSite(app, bind_address, PORT).start()
     await idle()
 
-
 if __name__ == '__main__':
     try:
         loop.run_until_complete(start())
     except KeyboardInterrupt:
         logging.info('Service Stopped Bye 👋')
-
-
