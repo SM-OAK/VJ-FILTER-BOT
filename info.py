@@ -13,7 +13,7 @@ id_pattern = re.compile(r'^.\d+$')
 SESSION = environ.get('SESSION', 'YeshVJBot')
 API_ID = int(environ.get('API_ID', '22321078'))
 API_HASH = environ.get('API_HASH', '9960806d290cf4170e43355fcc3687ac')
-BOT_TOKEN = environ.get('BOT_TOKEN', "8315054483:AAFCQMkvu2J4DABjTl5c4WP8speHJkfcgEU")
+BOT_TOKEN = environ.get('BOT_TOKEN', "8200587392:AAGOoy6_fjH3BkI4jfYH6XbSJdbNyc8qfHQ")
 
 
 # This Pictures Is For Start Message Picture, You Can Add Multiple By Giving One Space Between Each.
@@ -88,8 +88,8 @@ PUBLIC_FILE_CHANNEL = environ.get('PUBLIC_FILE_CHANNEL', '') # Public Channel Us
 
 
 # Links
-GRP_LNK = environ.get('GRP_LNK', 'https://t.me/+rC0W_RoQBCc1MGY1')
-CHNL_LNK = environ.get('CHNL_LNK', 'https://t.me/vj_bots')
+GRP_LNK = environ.get('GRP_LNK', 'https://t.me/+UnHrN2W_dzoxZjhl')
+CHNL_LNK = environ.get('CHNL_LNK', 'https://t.me/jav_subhd/10')
 SUPPORT_CHAT = environ.get('SUPPORT_CHAT', 'vj_bot_disscussion') # Support Chat Link Without https:// or @
 OWNER_LNK = environ.get('OWNER_LNK', 'https://t.me/SM_OAK')
 
@@ -190,7 +190,7 @@ else:
     USER_DB_URI = DATABASE_URI    # This Db is for User Data Store
     OTHER_DB_URI = O_DB_URI       # This Db Is For Other Data Store
     FILE_DB_URI = F_DB_URI        # This Db Is For File Data Store
-    SEC_FILE_DB_URI = S_DB_URI    # This Db is for File Data Store When First Db Is Going To Be Full.
+    SEC_FILE_DB_URI = S_DB_URI    #This Db is for File Data Store When First Db Is Going To Be Full.
 
 
 # Don't Remove Credit @VJ_Bots
