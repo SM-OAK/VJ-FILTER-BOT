@@ -158,66 +158,86 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot):
             current = lst_msg_id
             temp.CANCEL = False
             
-            # FIXED: Replaced invalid iter_messages with get_chat_history
-            # This indexes backwards from the given message ID
-            async for message in bot.get_chat_history(chat_id=chat, offset_id=lst_msg_id):
+            # FIXED: Using get_messages batching instead of get_chat_history
+            # Bots cannot use get_chat_history on channels.
+            
+            while current > 0:
                 if temp.CANCEL:
-                    await msg.edit(f"Successfully Cancelled!!\n\nSaved <code>{total_files}</code> files to dataBase!\nDuplicate Files Skipped: <code>{duplicate}</code>\nDeleted Messages Skipped: <code>{deleted}</code>\nNon-Media messages skipped: <code>{no_media + unsupported}</code>(Unsupported Media - `{unsupported}` )\nErrors Occurred: <code>{errors}</code>")
                     break
                 
-                # Stop indexing if we reach the skip limit (temp.CURRENT)
-                if message.id < temp.CURRENT:
+                # Stop if we reach the skip number
+                if current < temp.CURRENT:
+                    break
+                    
+                # Create a batch of 200 IDs (Pyrogram limit per request is usually 200)
+                # Calculating the end ID for this batch
+                end_id = max(current - 200, 0)
+                if end_id < temp.CURRENT:
+                    end_id = temp.CURRENT
+
+                # Generate the list of IDs: [current, current-1, ..., end_id+1]
+                batch_ids = list(range(current, end_id, -1))
+                
+                if not batch_ids:
                     break
 
-                if message.empty:
-                    deleted += 1
-                    continue
-                elif not message.media:
-                    no_media += 1
-                    continue
-                elif message.media not in [enums.MessageMediaType.VIDEO, enums.MessageMediaType.AUDIO, enums.MessageMediaType.DOCUMENT]:
-                    unsupported += 1
-                    continue
-                
                 try:
-                    media = getattr(message, message.media.value, None)
-                    if not media:
+                    messages = await bot.get_messages(chat_id=chat, message_ids=batch_ids)
+                except FloodWait as e:
+                    await asyncio.sleep(e.value)
+                    messages = await bot.get_messages(chat_id=chat, message_ids=batch_ids)
+                except Exception as e:
+                    logger.error(f"Error fetching batch {current}: {e}")
+                    current = end_id
+                    continue
+
+                for message in messages:
+                    if message.empty:
+                        deleted += 1
+                        continue
+                    elif not message.media:
+                        no_media += 1
+                        continue
+                    elif message.media not in [enums.MessageMediaType.VIDEO, enums.MessageMediaType.AUDIO, enums.MessageMediaType.DOCUMENT]:
                         unsupported += 1
                         continue
                     
-                    # CRITICAL: Manually attach caption to the media object 
-                    # because Pyrogram puts it on the Message object, but ia_filterdb expects it on media
-                    media.caption = message.caption
-                    
-                    aynav, vnay = await save_file(media)
-                    if aynav:
-                        total_files += 1
-                    elif vnay == 0:
-                        duplicate += 1
-                    elif vnay == 2:
-                        errors += 1
-                        
-                except FloodWait as e:
-                    # Added FloodWait handling
-                    await asyncio.sleep(e.value)
-                    
-                except Exception as e:
-                    errors += 1
-                    logger.error(f"Error on message {message.id}: {e}")
-
-                # Update status less frequently (every 50 messages) to avoid spamming edit requests
-                if total_files % 50 == 0:
                     try:
-                        await msg.edit_text(
-                            text=f"Total messages fetched: <code>{message.id}</code>\nTotal messages saved: <code>{total_files}</code>\nDuplicate Files Skipped: <code>{duplicate}</code>\nDeleted Messages Skipped: <code>{deleted}</code>\nNon-Media messages skipped: <code>{no_media + unsupported}</code>(Unsupported Media - `{unsupported}` )\nErrors Occurred: <code>{errors}</code>",
-                            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('Cancel', callback_data='index_cancel')]])
-                        )
-                    except MessageNotModified:
-                        pass
+                        media = getattr(message, message.media.value, None)
+                        if not media:
+                            unsupported += 1
+                            continue
                         
+                        media.caption = message.caption
+                        aynav, vnay = await save_file(media)
+                        if aynav:
+                            total_files += 1
+                        elif vnay == 0:
+                            duplicate += 1
+                        elif vnay == 2:
+                            errors += 1
+                            
+                    except Exception as e:
+                        errors += 1
+                        logger.error(f"Error saving message {message.id}: {e}")
+
+                # Update the current pointer
+                current = end_id
+
+                # Update status message every 200 messages
+                try:
+                    await msg.edit_text(
+                        text=f"Total messages fetched: <code>{lst_msg_id - current}</code>\nTotal messages saved: <code>{total_files}</code>\nDuplicate Files Skipped: <code>{duplicate}</code>\nDeleted Messages Skipped: <code>{deleted}</code>\nNon-Media messages skipped: <code>{no_media + unsupported}</code>(Unsupported Media - `{unsupported}` )\nErrors Occurred: <code>{errors}</code>",
+                        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('Cancel', callback_data='index_cancel')]])
+                    )
+                except MessageNotModified:
+                    pass
+                except FloodWait as e:
+                    await asyncio.sleep(e.value)
+
         except Exception as e:
             logger.exception(e)
             await msg.edit(f'Error: {e}')
         else:
             await msg.edit(f'Succesfully saved <code>{total_files}</code> to dataBase!\nDuplicate Files Skipped: <code>{duplicate}</code>\nDeleted Messages Skipped: <code>{deleted}</code>\nNon-Media messages skipped: <code>{no_media + unsupported}</code>(Unsupported Media - `{unsupported}` )\nErrors Occurred: <code>{errors}</code>')
-    
+        
